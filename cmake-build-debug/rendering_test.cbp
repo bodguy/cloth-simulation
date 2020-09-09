@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="rendering_test"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;CMake Files\..\;CMake Files\..\..\;CMake Files\..\..\..\;CMake Files\..\..\..\..\;CMake Files\..\..\..\..\..\;CMake Files\..\..\..\..\..\usr\;CMake Files\..\..\..\..\..\usr\local\;CMake Files\..\..\..\..\..\usr\local\lib\;CMake Files\..\..\..\..\..\usr\local\lib\cmake\;CMake Files\..\..\..\..\..\usr\local\lib\cmake\glew\;CMake Files\cmake\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rendering_test">
+				<Option output="/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/rendering_test" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/Library/Developer/CommandLineTools/SDKs/MacOSX10.15.sdk/System/Library/Frameworks/OpenGL.framework"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/Library/Developer/CommandLineTools/usr/bin/../include/c++/v1"/>
+					<Add directory="/Library/Developer/CommandLineTools/usr/lib/clang/12.0.0/include"/>
+					<Add directory="/Library/Developer/CommandLineTools/usr/include"/>
+					<Add directory="/System/Library/Frameworks"/>
+					<Add directory="/Library/Frameworks"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 rendering_test"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rendering_test/fast">
+				<Option output="/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/rendering_test" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/Library/Developer/CommandLineTools/SDKs/MacOSX10.15.sdk/System/Library/Frameworks/OpenGL.framework"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/Library/Developer/CommandLineTools/usr/bin/../include/c++/v1"/>
+					<Add directory="/Library/Developer/CommandLineTools/usr/lib/clang/12.0.0/include"/>
+					<Add directory="/Library/Developer/CommandLineTools/usr/include"/>
+					<Add directory="/System/Library/Frameworks"/>
+					<Add directory="/Library/Frameworks"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 rendering_test/fast"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/Users/bodguy/Desktop/algorithm/rendering_test/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/Users/bodguy/Desktop/algorithm/rendering_test/main.cpp">
+			<Option target="rendering_test"/>
+		</Unit>
+		<Unit filename="/Users/bodguy/Desktop/algorithm/rendering_test/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+		<Unit filename="/Users/bodguy/Desktop/algorithm/rendering_test/../../../../../usr/local/lib/cmake/glew/CopyImportedTargetProperties.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\glew\"/>
+		</Unit>
+		<Unit filename="/Users/bodguy/Desktop/algorithm/rendering_test/../../../../../usr/local/lib/cmake/glew/glew-config.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\glew\"/>
+		</Unit>
+		<Unit filename="/Users/bodguy/Desktop/algorithm/rendering_test/../../../../../usr/local/lib/cmake/glew/glew-targets-release.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\glew\"/>
+		</Unit>
+		<Unit filename="/Users/bodguy/Desktop/algorithm/rendering_test/../../../../../usr/local/lib/cmake/glew/glew-targets.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\usr\local\lib\cmake\glew\"/>
+		</Unit>
+		<Unit filename="/Users/bodguy/Desktop/algorithm/rendering_test/cmake/FindGLFW3.cmake">
+			<Option virtualFolder="CMake Files\cmake\"/>
+		</Unit>
+		<Unit filename="/Users/bodguy/Desktop/algorithm/rendering_test/cmake/FindGLM.cmake">
+			<Option virtualFolder="CMake Files\cmake\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>
