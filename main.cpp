@@ -10,18 +10,15 @@ public:
   explicit Particle(const glm::vec3& position);
 
   glm::vec3 get_position() const { return m_position; }
-  glm::vec3 get_normal() const { return m_normal; }
 
   void offset_pos(const glm::vec3& v);
-  void offset_normal(const glm::vec3& n) { m_normal += glm::normalize(n); }
   void set_movable(bool movable);
-  void reset_normal() { m_normal = glm::vec3(0, 0, 0); }
 
   void add_force(const glm::vec3& force);
   void update(float dt);
 
 private:
-  glm::vec3 m_position{}, m_old_position{}, m_acceleration = glm::vec3(0, 0, 0), m_normal = glm::vec3(0, 0, 0);
+  glm::vec3 m_position{}, m_old_position{}, m_acceleration = glm::vec3(0, 0, 0);
   float m_mass = 1.f, m_damping = 0.01f;
   bool m_is_movable = true;
 };
@@ -158,21 +155,21 @@ std::vector<glm::vec3> Cloth::make_data_buffer() {
     std::vector<glm::vec3> data_buffer{};
     for (int x = 0; x < m_width - 1; x++) {
         for (int y = 0; y < m_height - 1; y++) {
-            glm::vec3 normal = calc_triangle_normal(get_particle(x + 1, y), get_particle(x, y), get_particle(x, y + 1));
+//            glm::vec3 normal = calc_triangle_normal(get_particle(x + 1, y), get_particle(x, y), get_particle(x, y + 1));
             data_buffer.emplace_back(get_particle(x + 1, y)->get_position());
-            data_buffer.emplace_back(glm::normalize(normal));
+//            data_buffer.emplace_back(glm::normalize(normal));
             data_buffer.emplace_back(get_particle(x, y)->get_position());
-            data_buffer.emplace_back(glm::normalize(normal));
+//            data_buffer.emplace_back(glm::normalize(normal));
             data_buffer.emplace_back(get_particle(x, y + 1)->get_position());
-            data_buffer.emplace_back(glm::normalize(normal));
+//            data_buffer.emplace_back(glm::normalize(normal));
 
-            normal = calc_triangle_normal(get_particle(x + 1, y + 1), get_particle(x + 1, y), get_particle(x, y + 1));
+//            normal = calc_triangle_normal(get_particle(x + 1, y + 1), get_particle(x + 1, y), get_particle(x, y + 1));
             data_buffer.emplace_back(get_particle(x + 1, y + 1)->get_position());
-            data_buffer.emplace_back(glm::normalize(normal));
+//            data_buffer.emplace_back(glm::normalize(normal));
             data_buffer.emplace_back(get_particle(x + 1, y)->get_position());
-            data_buffer.emplace_back(glm::normalize(normal));
+//            data_buffer.emplace_back(glm::normalize(normal));
             data_buffer.emplace_back(get_particle(x, y + 1)->get_position());
-            data_buffer.emplace_back(glm::normalize(normal));
+//            data_buffer.emplace_back(glm::normalize(normal));
         }
     }
     return data_buffer;
@@ -180,7 +177,7 @@ std::vector<glm::vec3> Cloth::make_data_buffer() {
 
 void Cloth::initVertex() {
     std::vector<glm::vec3> data_buffer = make_data_buffer();
-    int STRIDE = 6 * sizeof(float);
+    int STRIDE = 3 * sizeof(float);
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
     glBindVertexArray(vao);
@@ -188,8 +185,8 @@ void Cloth::initVertex() {
     glBufferData(GL_ARRAY_BUFFER, data_buffer.size() * STRIDE, &data_buffer[0], GL_DYNAMIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)(3 * sizeof(float)));
+//    glEnableVertexAttribArray(1);
+//    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)(3 * sizeof(float)));
     glBindVertexArray(NULL);
 }
 
@@ -224,14 +221,14 @@ void Cloth::add_wind_force_for_triangle(Particle* p1, Particle* p2, Particle* p3
 
 void Cloth::render() {
     std::vector<glm::vec3> data_buffer = make_data_buffer();
-    int STRIDE = 6 * sizeof(float);
+    int STRIDE = 3 * sizeof(float);
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferSubData(GL_ARRAY_BUFFER, 0, data_buffer.size() * STRIDE, &data_buffer[0]);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)(3 * sizeof(float)));
+//    glEnableVertexAttribArray(1);
+//    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)(3 * sizeof(float)));
     glDrawArrays(GL_TRIANGLES, 0, data_buffer.size());
     glBindVertexArray(NULL);
 }
@@ -258,19 +255,16 @@ Particle* Cloth::get_particle(int x, int y) {
     return &m_particles[y * m_width + x];
 }
 
-std::vector<float> vertices = {
-    -0.5f,  0.5f, 0.0f, //vertex 1 : Top-left
-    0.5f, 0.5f, 0.0f, //vertex 2 : Top-right
-    0.5f, -0.5f, 0.0f, //vertex 3 : Bottom-right
-    0.5f, -0.5f, 0.0f, //vertex 4 : Bottom-right
-    -0.5f, -0.5f, 0.0f, //vertex 5 : Bottom-left
-    -0.5f,  0.5f, 0.0f //vertex 6 : Top-left
-};
-
-unsigned vao1, vbo1, program1;
+unsigned program1;
 Cloth* cloth;
-glm::vec3 dir = glm::vec3(0.5,0,0.2), pos = glm::vec3(0, 0, 0);
+glm::vec3 dir = glm::vec3(0.5,0,0.2), pos = glm::vec3(0.27, -0.17, 2.04);
 int w = 1024, h = 768;
+GLFWwindow* window;
+glm::vec3 forward = glm::vec3(0.f, 0.f, -1.f);
+glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
+glm::vec3 right = glm::cross(forward, up);
+float nearClipPlane = 0.1f, farClipPlane = 100.f, fieldOfView = glm::radians(45.f), speed = 0.01f;
+bool is_wireframe = true;
 
 bool loadFile(const std::string& filepath, std::string& out_source) {
     FILE* fp = nullptr;
@@ -347,27 +341,16 @@ void error(const std::string& message) {
 }
 
 bool init() {
-    glGenVertexArrays(1, &vao1);
-    glGenBuffers(1, &vbo1);
-    glBindVertexArray(vao1);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo1);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), &vertices.front(), GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
-    glBindVertexArray(NULL);
-
     program1 = loadShaderFromFile("../shaders/vs.cg", "../shaders/fs.cg");
     if (!program1)
         return false;
 
-    cloth = new Cloth(30, 30);
+    cloth = new Cloth(55, 45);
 
     return true;
 }
 
 void destroy() {
-    glDeleteVertexArrays(1, &vao1);
-    glDeleteBuffers(1, &vbo1);
     glDeleteProgram(program1);
     if (cloth) {
         delete cloth;
@@ -375,16 +358,25 @@ void destroy() {
     }
 }
 
-void update(float dt) {
+void fixedUpdate(float dt) {
     cloth->add_wind_force(dir);
     cloth->update(dt);
 }
 
-GLFWwindow* window;
-glm::vec3 forward = glm::vec3(0.f, 0.f, -1.f);
-glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
-glm::vec3 right = glm::cross(forward, up);
-float nearClipPlane = 0.1f, farClipPlane = 100.f, fieldOfView = glm::radians(45.f), velocity = 0.5f;
+void update(float dt) {
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) pos += forward * speed;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) pos += -forward * speed;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) pos += -right * speed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) pos += right * speed;
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) pos += up * speed;
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) pos += -up * speed;
+    if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS) is_wireframe = !is_wireframe;
+    if (is_wireframe) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    } else {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
+}
 
 void render() {
     glm::mat4 model = glm::mat4(1.0f);
@@ -393,21 +385,10 @@ void render() {
     glm::mat4 perspective = glm::perspective(fieldOfView, (float)w / (float)h, nearClipPlane, farClipPlane);
 
     glUseProgram(program1);
-//    glBindVertexArray(vao1);
     glUniformMatrix4fv(glGetUniformLocation(program1, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(glGetUniformLocation(program1, "view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(program1, "projection"), 1, GL_FALSE, glm::value_ptr(perspective));
-//    glDrawArrays(GL_TRIANGLES, 0, vertices.size());
     cloth->render();
-}
-
-void keyboardCallback() {
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) pos += forward * velocity;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) pos += -forward * velocity;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) pos += -right * velocity;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) pos += right * velocity;
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) pos += up * velocity;
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) pos += -up * velocity;
 }
 
 int main() {
@@ -450,9 +431,9 @@ int main() {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, true);
 
-        keyboardCallback();
         float fixed_timestamp = 0.25f;
-        update(fixed_timestamp);
+        update(0.f);
+        fixedUpdate(fixed_timestamp);
 
         glClearColor(0, 0, 0, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
