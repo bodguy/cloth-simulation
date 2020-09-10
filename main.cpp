@@ -158,13 +158,21 @@ std::vector<glm::vec3> Cloth::make_data_buffer() {
     std::vector<glm::vec3> data_buffer{};
     for (int x = 0; x < m_width - 1; x++) {
         for (int y = 0; y < m_height - 1; y++) {
+            glm::vec3 normal = calc_triangle_normal(get_particle(x + 1, y), get_particle(x, y), get_particle(x, y + 1));
             data_buffer.emplace_back(get_particle(x + 1, y)->get_position());
+            data_buffer.emplace_back(glm::normalize(normal));
             data_buffer.emplace_back(get_particle(x, y)->get_position());
+            data_buffer.emplace_back(glm::normalize(normal));
             data_buffer.emplace_back(get_particle(x, y + 1)->get_position());
+            data_buffer.emplace_back(glm::normalize(normal));
 
+            normal = calc_triangle_normal(get_particle(x + 1, y + 1), get_particle(x + 1, y), get_particle(x, y + 1));
             data_buffer.emplace_back(get_particle(x + 1, y + 1)->get_position());
+            data_buffer.emplace_back(glm::normalize(normal));
             data_buffer.emplace_back(get_particle(x + 1, y)->get_position());
+            data_buffer.emplace_back(glm::normalize(normal));
             data_buffer.emplace_back(get_particle(x, y + 1)->get_position());
+            data_buffer.emplace_back(glm::normalize(normal));
         }
     }
     return data_buffer;
@@ -176,10 +184,12 @@ void Cloth::initVertex() {
     glGenBuffers(1, &vbo);
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    int STRIDE = 3 * sizeof(float);
+    int STRIDE = 6 * sizeof(float);
     glBufferData(GL_ARRAY_BUFFER, data_buffer.size() * STRIDE, &data_buffer[0], GL_DYNAMIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)(3 * sizeof(float)));
 }
 
 void Cloth::add_wind_force(const glm::vec3& direction) {
@@ -213,11 +223,14 @@ void Cloth::add_wind_force_for_triangle(Particle* p1, Particle* p2, Particle* p3
 
 void Cloth::render() {
     std::vector<glm::vec3> data_buffer = make_data_buffer();
+    int STRIDE = 6 * sizeof(float);
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, data_buffer.size() * 3 * sizeof(float), &data_buffer[0]);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, data_buffer.size() * STRIDE, &data_buffer[0]);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)(3 * sizeof(float)));
     glDrawArrays(GL_TRIANGLES, 0, data_buffer.size());
 }
 
