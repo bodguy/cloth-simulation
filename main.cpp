@@ -10,15 +10,18 @@ public:
   explicit Particle(const glm::vec3& position);
 
   glm::vec3 get_position() const { return m_position; }
+  glm::vec3 get_normal() const { return m_normal; }
 
   void offset_pos(const glm::vec3& v);
+  void offset_normal(const glm::vec3& n) { m_normal += glm::normalize(n); }
   void set_movable(bool movable);
+  void reset_normal() { m_normal = glm::vec3(0, 0, 0); }
 
   void add_force(const glm::vec3& force);
   void update(float dt);
 
 private:
-  glm::vec3 m_position{}, m_old_position{}, m_acceleration = glm::vec3(0, 0, 0);
+  glm::vec3 m_position{}, m_old_position{}, m_acceleration = glm::vec3(0, 0, 0), m_normal = glm::vec3(0, 0, 0);
   float m_mass = 1.f, m_damping = 0.01f;
   bool m_is_movable = true;
 };
@@ -78,6 +81,7 @@ public:
   Cloth(int w, int h);
   ~Cloth();
 
+  std::vector<glm::vec3> make_data_buffer();
   void initVertex();
   void add_wind_force(const glm::vec3& direction);
 
@@ -150,7 +154,7 @@ Cloth::~Cloth() {
     glDeleteBuffers(1, &vbo);
 }
 
-void Cloth::initVertex() {
+std::vector<glm::vec3> Cloth::make_data_buffer() {
     std::vector<glm::vec3> data_buffer{};
     for (int x = 0; x < m_width - 1; x++) {
         for (int y = 0; y < m_height - 1; y++) {
@@ -163,7 +167,11 @@ void Cloth::initVertex() {
             data_buffer.emplace_back(get_particle(x, y + 1)->get_position());
         }
     }
+    return data_buffer;
+}
 
+void Cloth::initVertex() {
+    std::vector<glm::vec3> data_buffer = make_data_buffer();
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
     glBindVertexArray(vao);
@@ -204,19 +212,7 @@ void Cloth::add_wind_force_for_triangle(Particle* p1, Particle* p2, Particle* p3
 }
 
 void Cloth::render() {
-    std::vector<glm::vec3> data_buffer{};
-    for (int x = 0; x < m_width - 1; x++) {
-        for (int y = 0; y < m_height - 1; y++) {
-            data_buffer.emplace_back(get_particle(x + 1, y)->get_position());
-            data_buffer.emplace_back(get_particle(x, y)->get_position());
-            data_buffer.emplace_back(get_particle(x, y + 1)->get_position());
-
-            data_buffer.emplace_back(get_particle(x + 1, y + 1)->get_position());
-            data_buffer.emplace_back(get_particle(x + 1, y)->get_position());
-            data_buffer.emplace_back(get_particle(x, y + 1)->get_position());
-        }
-    }
-
+    std::vector<glm::vec3> data_buffer = make_data_buffer();
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferSubData(GL_ARRAY_BUFFER, 0, data_buffer.size() * 3 * sizeof(float), &data_buffer[0]);
@@ -389,7 +385,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-    int w = 800, h = 600;
+    int w = 1024, h = 768;
     std::string title = "test";
     GLFWwindow* window = glfwCreateWindow(w, h, title.c_str(), nullptr, nullptr);
     if (!window) {
