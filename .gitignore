@@ -1,1 +1,6 @@
-cmake-build-debug
+/*
+
+!/shaders
+!.gitignore
+!CMakeLists.txt
+!main.cpp

@@ -79,7 +79,7 @@ public:
   ~Cloth();
 
   std::vector<glm::vec3> make_data_buffer();
-  void initVertex();
+  void rebuild_vertex_buffer(bool first_invoked);
   void add_wind_force(const glm::vec3& direction);
 
   void render();
@@ -143,7 +143,7 @@ Cloth::Cloth(int w, int h) : m_width{w}, m_height{h} {
         get_particle(0+i ,0)->offset_pos(glm::vec3(-0.5,0.0,0.0));
         get_particle(0 + m_width - 1 - i ,0)->set_movable(false);
     }
-    initVertex();
+    rebuild_vertex_buffer(true);
 }
 
 Cloth::~Cloth() {
@@ -175,18 +175,28 @@ std::vector<glm::vec3> Cloth::make_data_buffer() {
     return data_buffer;
 }
 
-void Cloth::initVertex() {
+void Cloth::rebuild_vertex_buffer(bool first_invoked) {
     std::vector<glm::vec3> data_buffer = make_data_buffer();
     int STRIDE = 3 * sizeof(float);
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
+    if (first_invoked) {
+        glGenVertexArrays(1, &vao);
+        glGenBuffers(1, &vbo);
+    }
+
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, data_buffer.size() * STRIDE, &data_buffer[0], GL_DYNAMIC_DRAW);
+    if (first_invoked) {
+        glBufferData(GL_ARRAY_BUFFER, data_buffer.size() * STRIDE, &data_buffer[0], GL_DYNAMIC_DRAW);
+    } else {
+        glBufferSubData(GL_ARRAY_BUFFER, 0, data_buffer.size() * STRIDE, &data_buffer[0]);
+    }
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)0);
 //    glEnableVertexAttribArray(1);
 //    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)(3 * sizeof(float)));
+    if (!first_invoked) {
+        glDrawArrays(GL_TRIANGLES, 0, data_buffer.size());
+    }
     glBindVertexArray(NULL);
 }
 
@@ -220,17 +230,7 @@ void Cloth::add_wind_force_for_triangle(Particle* p1, Particle* p2, Particle* p3
 }
 
 void Cloth::render() {
-    std::vector<glm::vec3> data_buffer = make_data_buffer();
-    int STRIDE = 3 * sizeof(float);
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, data_buffer.size() * STRIDE, &data_buffer[0]);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)0);
-//    glEnableVertexAttribArray(1);
-//    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)(3 * sizeof(float)));
-    glDrawArrays(GL_TRIANGLES, 0, data_buffer.size());
-    glBindVertexArray(NULL);
+    rebuild_vertex_buffer(false);
 }
 
 void Cloth::update(float dt) {
