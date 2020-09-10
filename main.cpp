@@ -226,7 +226,7 @@ void Cloth::render() {
     int STRIDE = 6 * sizeof(float);
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, data_buffer.size() * STRIDE, &data_buffer[0]);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, data_buffer.size() * STRIDE, &data_buffer.front());
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)0);
     glEnableVertexAttribArray(1);
@@ -267,7 +267,8 @@ std::vector<float> vertices = {
 
 unsigned vao1, vbo1, program1;
 Cloth* cloth;
-glm::vec3 dir = glm::vec3(0.5,0,0.2);
+glm::vec3 dir = glm::vec3(0.5,0,0.2), pos = glm::vec3(0, 0, 0);
+int w = 1024, h = 768;
 
 bool loadFile(const std::string& filepath, std::string& out_source) {
     FILE* fp = nullptr;
@@ -377,15 +378,34 @@ void update(float dt) {
     cloth->update(dt);
 }
 
+GLFWwindow* window;
+glm::vec3 forward = glm::vec3(0.f, 0.f, -1.f);
+glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
+glm::vec3 right = glm::cross(forward, up);
+float nearClipPlane = 0.1f, farClipPlane = 100.f, fieldOfView = glm::radians(45.f), velocity = 0.5f;
+
 void render() {
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(-0.5f, 0.5f, 0.f));
+    glm::mat4 view = glm::lookAt(pos, pos + forward, up);
+    glm::mat4 perspective = glm::perspective(fieldOfView, (float)w / (float)h, nearClipPlane, farClipPlane);
 
     glUseProgram(program1);
 //    glBindVertexArray(vao1);
     glUniformMatrix4fv(glGetUniformLocation(program1, "model"), 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(glGetUniformLocation(program1, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(program1, "projection"), 1, GL_FALSE, glm::value_ptr(perspective));
 //    glDrawArrays(GL_TRIANGLES, 0, vertices.size());
     cloth->render();
+}
+
+void keyboardCallback() {
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) pos += forward * velocity;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) pos += -forward * velocity;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) pos += -right * velocity;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) pos += right * velocity;
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) pos += up * velocity;
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) pos += -up * velocity;
 }
 
 int main() {
@@ -398,9 +418,8 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-    int w = 1024, h = 768;
     std::string title = "test";
-    GLFWwindow* window = glfwCreateWindow(w, h, title.c_str(), nullptr, nullptr);
+    window = glfwCreateWindow(w, h, title.c_str(), nullptr, nullptr);
     if (!window) {
         error("glfw window init error");
         glfwTerminate();
@@ -429,6 +448,7 @@ int main() {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, true);
 
+        keyboardCallback();
         float fixed_timestamp = 0.25f;
         update(fixed_timestamp);
 
