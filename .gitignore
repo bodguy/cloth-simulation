@@ -1,6 +1,7 @@
 /*
 
-!/shaders
+!/cmake/
+!/shaders/
 !.gitignore
 !CMakeLists.txt
 !main.cpp
