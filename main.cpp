@@ -78,7 +78,7 @@ public:
   Cloth(int w, int h);
   ~Cloth();
 
-  std::vector<glm::vec3> make_data_buffer();
+  std::pair<std::vector<glm::vec3>, std::vector<glm::vec3>> make_data_buffer();
   void rebuild_vertex_buffer(bool first_invoked);
   void add_wind_force(const glm::vec3& direction);
 
@@ -97,7 +97,7 @@ private:
   int m_cloth_solver_freq = 15;
   std::vector<Particle> m_particles;
   std::vector<Constraint> m_constraint;
-  unsigned int vao = 0, vbo = 0;
+  unsigned int vao = 0, vbo = 0, vbo2 = 0;
 };
 
 Cloth::Cloth(int w, int h) : m_width{w}, m_height{h} {
@@ -149,55 +149,69 @@ Cloth::Cloth(int w, int h) : m_width{w}, m_height{h} {
 Cloth::~Cloth() {
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &vbo2);
 }
 
-std::vector<glm::vec3> Cloth::make_data_buffer() {
-    std::vector<glm::vec3> data_buffer{};
+std::pair<std::vector<glm::vec3>, std::vector<glm::vec3>> Cloth::make_data_buffer() {
+    std::vector<glm::vec3> vertex_position_buffer{};
+    std::vector<glm::vec3> vertex_normal_buffer{};
     for (int x = 0; x < m_width - 1; x++) {
         for (int y = 0; y < m_height - 1; y++) {
-//            glm::vec3 normal = calc_triangle_normal(get_particle(x + 1, y), get_particle(x, y), get_particle(x, y + 1));
-            data_buffer.emplace_back(get_particle(x + 1, y)->get_position());
-//            data_buffer.emplace_back(glm::normalize(normal));
-            data_buffer.emplace_back(get_particle(x, y)->get_position());
-//            data_buffer.emplace_back(glm::normalize(normal));
-            data_buffer.emplace_back(get_particle(x, y + 1)->get_position());
-//            data_buffer.emplace_back(glm::normalize(normal));
+            vertex_position_buffer.emplace_back(get_particle(x + 1, y)->get_position());
+            vertex_position_buffer.emplace_back(get_particle(x, y)->get_position());
+            vertex_position_buffer.emplace_back(get_particle(x, y + 1)->get_position());
 
-//            normal = calc_triangle_normal(get_particle(x + 1, y + 1), get_particle(x + 1, y), get_particle(x, y + 1));
-            data_buffer.emplace_back(get_particle(x + 1, y + 1)->get_position());
-//            data_buffer.emplace_back(glm::normalize(normal));
-            data_buffer.emplace_back(get_particle(x + 1, y)->get_position());
-//            data_buffer.emplace_back(glm::normalize(normal));
-            data_buffer.emplace_back(get_particle(x, y + 1)->get_position());
-//            data_buffer.emplace_back(glm::normalize(normal));
+            glm::vec3 normal = glm::normalize(calc_triangle_normal(get_particle(x + 1, y), get_particle(x, y), get_particle(x, y + 1)));
+            vertex_normal_buffer.emplace_back(normal);
+            vertex_normal_buffer.emplace_back(normal);
+            vertex_normal_buffer.emplace_back(normal);
+
+            vertex_position_buffer.emplace_back(get_particle(x + 1, y + 1)->get_position());
+            vertex_position_buffer.emplace_back(get_particle(x + 1, y)->get_position());
+            vertex_position_buffer.emplace_back(get_particle(x, y + 1)->get_position());
+            normal = glm::normalize(calc_triangle_normal(get_particle(x + 1, y + 1), get_particle(x + 1, y), get_particle(x, y + 1)));
+            vertex_normal_buffer.emplace_back(normal);
+            vertex_normal_buffer.emplace_back(normal);
+            vertex_normal_buffer.emplace_back(normal);
         }
     }
-    return data_buffer;
+    return {vertex_position_buffer, vertex_normal_buffer};
 }
 
 void Cloth::rebuild_vertex_buffer(bool first_invoked) {
-    std::vector<glm::vec3> data_buffer = make_data_buffer();
-    int STRIDE = 3 * sizeof(float);
+    auto buffer_data = make_data_buffer();
+
     if (first_invoked) {
         glGenVertexArrays(1, &vao);
         glGenBuffers(1, &vbo);
+        glGenBuffers(1, &vbo2);
     }
 
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     if (first_invoked) {
-        glBufferData(GL_ARRAY_BUFFER, data_buffer.size() * STRIDE, &data_buffer[0], GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, buffer_data.first.size() * sizeof(glm::vec3), &(buffer_data.first[0].x), GL_DYNAMIC_DRAW);
     } else {
-        glBufferSubData(GL_ARRAY_BUFFER, 0, data_buffer.size() * STRIDE, &data_buffer[0]);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, buffer_data.first.size() * sizeof(glm::vec3), &(buffer_data.first[0].x));
     }
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)0);
-//    glEnableVertexAttribArray(1);
-//    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, STRIDE, (void *)(3 * sizeof(float)));
-    if (!first_invoked) {
-        glDrawArrays(GL_TRIANGLES, 0, data_buffer.size());
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void *)0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo2);
+    if (first_invoked) {
+        glBufferData(GL_ARRAY_BUFFER, buffer_data.second.size() * sizeof(glm::vec3), &(buffer_data.second[0].x), GL_DYNAMIC_DRAW);
+    } else {
+        glBufferSubData(GL_ARRAY_BUFFER, 0, buffer_data.second.size() * sizeof(glm::vec3), &(buffer_data.second[0].x));
     }
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void *)0);
     glBindVertexArray(NULL);
+
+    if (!first_invoked) {
+        glBindVertexArray(vao);
+        glDrawArrays(GL_TRIANGLES, 0, buffer_data.first.size());
+        glBindVertexArray(NULL);
+    }
 }
 
 void Cloth::add_wind_force(const glm::vec3& direction) {
@@ -263,7 +277,7 @@ GLFWwindow* window;
 glm::vec3 forward = glm::vec3(0.f, 0.f, -1.f);
 glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
 glm::vec3 right = glm::cross(forward, up);
-float nearClipPlane = 0.1f, farClipPlane = 100.f, fieldOfView = glm::radians(45.f), speed = 0.01f;
+float nearClipPlane = 0.1f, farClipPlane = 100.f, fieldOfView = glm::radians(45.f), speed = 0.04f;
 bool is_wireframe = true;
 
 bool loadFile(const std::string& filepath, std::string& out_source) {
