@@ -10,6 +10,9 @@ public:
   explicit Particle(const glm::vec3& position);
 
   glm::vec3 get_position() const { return m_position; }
+  glm::vec3& get_normal() { return m_accumulated_normal; }
+  void add_to_normal(glm::vec3& normal) { m_accumulated_normal += normal; }
+  void reset_normal() { m_accumulated_normal = glm::vec3(0, 0, 0); }
 
   void offset_pos(const glm::vec3& v);
   void set_movable(bool movable);
@@ -18,7 +21,7 @@ public:
   void update(float dt);
 
 private:
-  glm::vec3 m_position{}, m_old_position{}, m_acceleration = glm::vec3(0, 0, 0);
+  glm::vec3 m_position{}, m_old_position{}, m_acceleration = glm::vec3(0, 0, 0), m_accumulated_normal = glm::vec3(0, 0, 0);
   float m_mass = 1.f, m_damping = 0.01f;
   bool m_is_movable = true;
 };
@@ -155,26 +158,36 @@ Cloth::~Cloth() {
 std::pair<std::vector<glm::vec3>, std::vector<glm::vec3>> Cloth::make_data_buffer() {
     std::vector<glm::vec3> vertex_position_buffer{};
     std::vector<glm::vec3> vertex_normal_buffer{};
+    for(Particle& p : m_particles) {
+        p.reset_normal();
+    }
+
     for (int x = 0; x < m_width - 1; x++) {
         for (int y = 0; y < m_height - 1; y++) {
             vertex_position_buffer.emplace_back(get_particle(x + 1, y)->get_position());
             vertex_position_buffer.emplace_back(get_particle(x, y)->get_position());
             vertex_position_buffer.emplace_back(get_particle(x, y + 1)->get_position());
-
             glm::vec3 normal = glm::normalize(calc_triangle_normal(get_particle(x + 1, y), get_particle(x, y), get_particle(x, y + 1)));
-            vertex_normal_buffer.emplace_back(normal);
-            vertex_normal_buffer.emplace_back(normal);
-            vertex_normal_buffer.emplace_back(normal);
+            get_particle(x + 1, y)->add_to_normal(normal);
+            get_particle(x, y)->add_to_normal(normal);
+            get_particle(x, y + 1)->add_to_normal(normal);
+            vertex_normal_buffer.emplace_back(get_particle(x + 1, y)->get_normal());
+            vertex_normal_buffer.emplace_back(get_particle(x, y)->get_normal());
+            vertex_normal_buffer.emplace_back(get_particle(x, y + 1)->get_normal());
 
             vertex_position_buffer.emplace_back(get_particle(x + 1, y + 1)->get_position());
             vertex_position_buffer.emplace_back(get_particle(x + 1, y)->get_position());
             vertex_position_buffer.emplace_back(get_particle(x, y + 1)->get_position());
             normal = glm::normalize(calc_triangle_normal(get_particle(x + 1, y + 1), get_particle(x + 1, y), get_particle(x, y + 1)));
-            vertex_normal_buffer.emplace_back(normal);
-            vertex_normal_buffer.emplace_back(normal);
-            vertex_normal_buffer.emplace_back(normal);
+            get_particle(x + 1, y + 1)->add_to_normal(normal);
+            get_particle(x + 1, y)->add_to_normal(normal);
+            get_particle(x, y + 1)->add_to_normal(normal);
+            vertex_normal_buffer.emplace_back(get_particle(x + 1, y + 1)->get_normal());
+            vertex_normal_buffer.emplace_back(get_particle(x + 1, y)->get_normal());
+            vertex_normal_buffer.emplace_back(get_particle(x, y + 1)->get_normal());
         }
     }
+
     return {vertex_position_buffer, vertex_normal_buffer};
 }
 
@@ -247,6 +260,17 @@ void Cloth::render() {
     rebuild_vertex_buffer(false);
 }
 
+unsigned program1;
+Cloth* cloth;
+glm::vec3 wind_dir = glm::vec3(20, 0, 0.6), gravity_dir = glm::vec3(0.f, -0.2f, 0.f), viewPos = glm::vec3(0.27, -0.17, 2.04);
+int w = 1024, h = 768;
+GLFWwindow* window;
+glm::vec3 forward = glm::vec3(0.f, 0.f, -1.f);
+glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
+glm::vec3 right = glm::cross(forward, up);
+float nearClipPlane = 0.1f, farClipPlane = 100.f, fieldOfView = glm::radians(45.f), speed = 0.04f;
+bool is_wireframe = false;
+
 void Cloth::update(float dt) {
     if (!m_enabled) return;
 
@@ -256,7 +280,6 @@ void Cloth::update(float dt) {
         }
     }
 
-    glm::vec3 gravity_dir = glm::vec3(0.f, -0.2f, 0.f);
     for (auto& particle : m_particles) {
         if (m_use_gravity) {
             particle.add_force(gravity_dir * dt);
@@ -268,17 +291,6 @@ void Cloth::update(float dt) {
 Particle* Cloth::get_particle(int x, int y) {
     return &m_particles[y * m_width + x];
 }
-
-unsigned program1;
-Cloth* cloth;
-glm::vec3 dir = glm::vec3(0.5,0,0.2), pos = glm::vec3(0.27, -0.17, 2.04);
-int w = 1024, h = 768;
-GLFWwindow* window;
-glm::vec3 forward = glm::vec3(0.f, 0.f, -1.f);
-glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
-glm::vec3 right = glm::cross(forward, up);
-float nearClipPlane = 0.1f, farClipPlane = 100.f, fieldOfView = glm::radians(45.f), speed = 0.04f;
-bool is_wireframe = true;
 
 bool loadFile(const std::string& filepath, std::string& out_source) {
     FILE* fp = nullptr;
@@ -355,7 +367,7 @@ void error(const std::string& message) {
 }
 
 bool init() {
-    program1 = loadShaderFromFile("../shaders/vs.cg", "../shaders/fs.cg");
+    program1 = loadShaderFromFile("../shaders/vs.glsl", "../shaders/fs.glsl");
     if (!program1)
         return false;
 
@@ -373,17 +385,17 @@ void destroy() {
 }
 
 void fixedUpdate(float dt) {
-    cloth->add_wind_force(dir);
+    cloth->add_wind_force(wind_dir);
     cloth->update(dt);
 }
 
 void update(float dt) {
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) pos += forward * speed;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) pos += -forward * speed;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) pos += -right * speed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) pos += right * speed;
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) pos += up * speed;
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) pos += -up * speed;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) viewPos += forward * speed;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) viewPos += -forward * speed;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) viewPos += -right * speed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) viewPos += right * speed;
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) viewPos += up * speed;
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) viewPos += -up * speed;
     if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS) is_wireframe = !is_wireframe;
     if (is_wireframe) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -395,13 +407,22 @@ void update(float dt) {
 void render() {
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(-0.5f, 0.5f, 0.f));
-    glm::mat4 view = glm::lookAt(pos, pos + forward, up);
+    glm::mat4 view = glm::lookAt(viewPos, viewPos + forward, up);
     glm::mat4 perspective = glm::perspective(fieldOfView, (float)w / (float)h, nearClipPlane, farClipPlane);
+    float attenuation = 0.05f, intensity = 0.5f, shininess = 128.f;
+    glm::vec3 color = glm::vec3(1.f, 0.f, 0.f), lightPos = glm::vec3(3.17f, 2.34f, -4.184f);
 
     glUseProgram(program1);
     glUniformMatrix4fv(glGetUniformLocation(program1, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(glGetUniformLocation(program1, "view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(program1, "projection"), 1, GL_FALSE, glm::value_ptr(perspective));
+    glUniformMatrix4fv(glGetUniformLocation(program1, "viewPos"), 1, GL_FALSE, glm::value_ptr(viewPos));
+    glUniformMatrix4fv(glGetUniformLocation(program1, "pointLights[0].position"), 1, GL_FALSE, glm::value_ptr(lightPos));
+    glUniform3fv(glGetUniformLocation(program1, "pointLights[0].color"), 1, glm::value_ptr(color));
+    glUniform1f(glGetUniformLocation(program1, "pointLights[0].attenuation"), attenuation);
+    glUniform1f(glGetUniformLocation(program1, "pointLights[0].intensity"), intensity);
+    glUniform1f(glGetUniformLocation(program1, "material.shininess"), shininess);
+
     cloth->render();
 }
 
@@ -439,7 +460,6 @@ int main() {
     }
 
     glEnable(GL_DEPTH_TEST);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
