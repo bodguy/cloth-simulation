@@ -2,6 +2,7 @@
 
 !/cmake/
 !/shaders/
+!/README.md
 !.gitignore
 !CMakeLists.txt
 !main.cpp

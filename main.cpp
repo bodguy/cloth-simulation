@@ -278,6 +278,7 @@ float nearClipPlane = 0.1f, farClipPlane = 100.f, fieldOfView = glm::radians(45.
 bool is_wireframe = false;
 int sphere_draw_call_count = 0;
 glm::vec3 sphere_pos = glm::vec3(0, 0, 0);
+float sphere_radius = 0.2;
 
 void Cloth::update(float dt) {
     if (!m_enabled) return;
@@ -492,6 +493,7 @@ void destroy() {
 void fixedUpdate(float dt) {
     cloth->add_wind_force(wind_dir);
     cloth->update(dt);
+    cloth->collision_detection_with_sphere(sphere_pos, sphere_radius);
 }
 
 void update(float dt) {
@@ -517,7 +519,7 @@ void update(float dt) {
 }
 
 void render() {
-    glm::mat4 model = glm::mat4(1.0f);
+    glm::mat4 model = glm::identity<glm::mat4>();
     model = glm::translate(model, glm::vec3(-0.5f, 0.5f, 0.f));
     glm::mat4 view = glm::lookAt(viewPos, viewPos + forward, up);
     glm::mat4 perspective = glm::perspective(fieldOfView, (float)w / (float)h, nearClipPlane, farClipPlane);
@@ -537,7 +539,7 @@ void render() {
 
     cloth->render();
 
-    model = glm::mat4(1.0f);
+    model = glm::identity<glm::mat4>();
     model = glm::translate(model, sphere_pos);
     model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
     glUniformMatrix4fv(glGetUniformLocation(program1, "model"), 1, GL_FALSE, glm::value_ptr(model));
