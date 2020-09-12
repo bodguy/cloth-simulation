@@ -1,5 +1,7 @@
 # cloth simulation with compute shader with modern opengl features
 
+![capture](./capture.png)
+
 - cloth simulation (constraint, particles)
 - sphere rendering (icoshadron)
 - sphere collision detection
