@@ -88,7 +88,8 @@ public:
 
   void render();
   void update(float dt);
-
+  void collision_detection_with_sphere(const glm::vec3& center, const float radius);
+  
   Particle* get_particle(int x, int y);
 
 private:
@@ -98,7 +99,7 @@ private:
 private:
   int m_width, m_height;
   bool m_enabled = true, m_use_gravity = true;
-  int m_cloth_solver_freq = 15;
+  int constraint_iterations = 15;
   std::vector<Particle> m_particles;
   std::vector<Constraint> m_constraint;
   unsigned int vao = 0, vbo = 0, vbo2 = 0;
@@ -158,7 +159,9 @@ Cloth::~Cloth() {
 
 std::tuple<std::vector<glm::vec3>, std::vector<glm::vec3>, std::vector<glm::vec2>> Cloth::make_data_buffer() {
     std::vector<glm::vec3> vertex_position_buffer{};
+    vertex_position_buffer.reserve(6 * m_width * m_height);
     std::vector<glm::vec3> vertex_normal_buffer{};
+    vertex_normal_buffer.reserve(6 * m_width * m_height);
     std::vector<glm::vec2> vertex_tex_buffer{};
     for(Particle& p : m_particles) {
         p.reset_normal();
@@ -263,7 +266,7 @@ void Cloth::render() {
     rebuild_vertex_buffer(false);
 }
 
-unsigned program1;
+unsigned program1, sphere_vao, sphere_vbo_position, sphere_vbo_normal, sphere_index_buffer;
 Cloth* cloth;
 glm::vec3 wind_dir = glm::vec3(12, 0, 0.6), gravity_dir = glm::vec3(0.f, -0.2f, 0.f), viewPos = glm::vec3(0.27, -0.17, 2.04);
 int w = 1024, h = 768;
@@ -273,21 +276,33 @@ glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
 glm::vec3 right = glm::cross(forward, up);
 float nearClipPlane = 0.1f, farClipPlane = 100.f, fieldOfView = glm::radians(45.f), speed = 0.04f;
 bool is_wireframe = false;
+int sphere_draw_call_count = 0;
+glm::vec3 sphere_pos = glm::vec3(0, 0, 0);
 
 void Cloth::update(float dt) {
     if (!m_enabled) return;
 
-    for (int i = 0; i < m_cloth_solver_freq; i++) {
+    for (int i = 0; i < constraint_iterations; i++) {
         for (auto& constraint : m_constraint) {
             constraint.satisfy();
         }
     }
 
-    for (auto& particle : m_particles) {
+    for (auto& p : m_particles) {
         if (m_use_gravity) {
-            particle.add_force(gravity_dir * dt);
+            p.add_force(gravity_dir * dt);
         }
-        particle.update(dt);
+        p.update(dt);
+    }
+}
+
+void Cloth::collision_detection_with_sphere(const glm::vec3& center, const float radius) {
+    for (auto& p : m_particles) {
+        glm::vec3 distance = p.get_position() - center;
+        float length = glm::length(distance);
+        if (length < radius) {
+            p.offset_pos(glm::normalize(distance) * (radius - length));
+        }
     }
 }
 
@@ -365,6 +380,65 @@ unsigned int loadShaderFromFile(const std::string& vs_name, const std::string& f
     return shaderProgram;
 }
 
+unsigned int subdivide(unsigned int p1, unsigned int p2, std::vector<glm::vec3>& positions) {
+    glm::vec3 middle = (positions[p1] + positions[p2]) / 2.f;
+    positions.push_back(glm::normalize(middle));
+    return positions.size() - 1;
+}
+
+std::tuple<std::vector<glm::vec3>, std::vector<glm::vec3>, std::vector<unsigned int>> generate_ico_sphere(unsigned int subdivisions) {
+    float t = (1.f + glm::sqrt(5.f) / 2.f);
+    std::vector<glm::vec3> vertices = {
+      glm::normalize(glm::vec3(-1.f, t, 0.f)), glm::normalize(glm::vec3(1.f, t, 0.f)),
+      glm::normalize(glm::vec3(-1.f, -t, 0.f)), glm::normalize(glm::vec3(1.f, -t, 0.f)),
+      glm::normalize(glm::vec3(0.f, -1.f, t)), glm::normalize(glm::vec3(0.f, 1.f, t)),
+      glm::normalize(glm::vec3(0.f, -1.f, -t)), glm::normalize(glm::vec3(0.f, 1.f, -t)),
+      glm::normalize(glm::vec3(t, 0.f, -1.f)), glm::normalize(glm::vec3(t, 0.f, 1.f)),
+      glm::normalize(glm::vec3(-t, 0.f, -1.f)), glm::normalize(glm::vec3(-t, 0.f, 1.f))
+    };
+
+    std::vector<unsigned int> indices = {
+         0, 11, 5, 0, 5,  1,  0,  1,  7,  0,  7, 10, 0, 10, 11,
+         1, 5,  9, 5, 11, 4,  11, 10, 2,  10, 7, 6,  7, 1,  8,
+         3, 9,  4, 3, 4,  2,  3,  2,  6,  3,  6, 8,  3, 8,  9,
+         4, 9,  5, 2, 4,  11, 6,  2,  10, 8,  6, 7,  9, 8,  1
+    };
+
+    for (unsigned int i = 0; i < subdivisions; i++) {
+        std::vector<unsigned int> indices2;
+        for (unsigned int j = 0; j < indices.size() / 3; j++) {
+            unsigned int a = subdivide(indices[j * 3 + 0], indices[j * 3 + 1], vertices);
+            unsigned int b = subdivide(indices[j * 3 + 1], indices[j * 3 + 2], vertices);
+            unsigned int c = subdivide(indices[j * 3 + 2], indices[j * 3 + 0], vertices);
+
+            indices2.push_back(indices[j * 3 + 0]);
+            indices2.push_back(a);
+            indices2.push_back(c);
+
+            indices2.push_back(indices[j * 3 + 1]);
+            indices2.push_back(b);
+            indices2.push_back(a);
+
+            indices2.push_back(indices[j * 3 + 2]);
+            indices2.push_back(c);
+            indices2.push_back(b);
+
+            indices2.push_back(a);
+            indices2.push_back(b);
+            indices2.push_back(c);
+        }
+        indices = indices2;
+    }
+
+    std::vector<glm::vec3> normals;
+    normals.reserve(vertices.size());
+    for (const auto& v : vertices) {
+        normals.push_back(v);
+    }
+
+    return {vertices, normals, indices};
+}
+
 void error(const std::string& message) {
     std::cout << message << std::endl;
 }
@@ -374,12 +448,40 @@ bool init() {
     if (!program1)
         return false;
 
+    const auto& [positions, normals, indices] = generate_ico_sphere(3);
+    sphere_draw_call_count = indices.size();
+
+    glGenVertexArrays(1, &sphere_vao);
+    glBindVertexArray(sphere_vao);
+
+    glGenBuffers(1, &sphere_vbo_position);
+    glBindBuffer(GL_ARRAY_BUFFER, sphere_vbo_position);
+    glBufferData(GL_ARRAY_BUFFER, positions.size() * sizeof(glm::vec3), &(positions.front()), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void *)0);
+
+    glGenBuffers(1, &sphere_vbo_normal);
+    glBindBuffer(GL_ARRAY_BUFFER, sphere_vbo_normal);
+    glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &(normals.front()), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void *)0);
+
+    glGenBuffers(1, &sphere_index_buffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphere_index_buffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &(indices.front()), GL_STATIC_DRAW);
+
+    glBindVertexArray(NULL);
+
     cloth = new Cloth(55, 45);
 
     return true;
 }
 
 void destroy() {
+    glDeleteVertexArrays(1, &sphere_vao);
+    glDeleteBuffers(1, &sphere_vbo_position);
+    glDeleteBuffers(1, &sphere_vbo_normal);
+    glDeleteBuffers(1, &sphere_index_buffer);
     glDeleteProgram(program1);
     if (cloth) {
         delete cloth;
@@ -405,6 +507,13 @@ void update(float dt) {
     } else {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
+
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) sphere_pos += forward * speed;
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) sphere_pos += -forward * speed;
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) sphere_pos += -right * speed;
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) sphere_pos += right * speed;
+    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) sphere_pos += up * speed;
+    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) sphere_pos += -up * speed;
 }
 
 void render() {
@@ -427,6 +536,14 @@ void render() {
     glUniform1f(glGetUniformLocation(program1, "material.shininess"), shininess);
 
     cloth->render();
+
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, sphere_pos);
+    model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
+    glUniformMatrix4fv(glGetUniformLocation(program1, "model"), 1, GL_FALSE, glm::value_ptr(model));
+    glBindVertexArray(sphere_vao);
+    glDrawElements(GL_TRIANGLES, sphere_draw_call_count, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(NULL);
 }
 
 int main() {
