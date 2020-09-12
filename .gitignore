@@ -4,5 +4,6 @@
 !/shaders/
 !/README.md
 !.gitignore
+!capture.png
 !CMakeLists.txt
 !main.cpp
