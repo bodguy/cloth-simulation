@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <tuple>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -9,7 +10,7 @@ public:
   Particle() = default;
   explicit Particle(const glm::vec3& position);
 
-  glm::vec3 get_position() const { return m_position; }
+  [[nodiscard]] glm::vec3 get_position() const { return m_position; }
   glm::vec3& get_normal() { return m_accumulated_normal; }
   void add_to_normal(glm::vec3& normal) { m_accumulated_normal += normal; }
   void reset_normal() { m_accumulated_normal = glm::vec3(0, 0, 0); }
@@ -81,7 +82,7 @@ public:
   Cloth(int w, int h);
   ~Cloth();
 
-  std::pair<std::vector<glm::vec3>, std::vector<glm::vec3>> make_data_buffer();
+  std::tuple<std::vector<glm::vec3>, std::vector<glm::vec3>, std::vector<glm::vec2>> make_data_buffer();
   void rebuild_vertex_buffer(bool first_invoked);
   void add_wind_force(const glm::vec3& direction);
 
@@ -155,9 +156,10 @@ Cloth::~Cloth() {
     glDeleteBuffers(1, &vbo2);
 }
 
-std::pair<std::vector<glm::vec3>, std::vector<glm::vec3>> Cloth::make_data_buffer() {
+std::tuple<std::vector<glm::vec3>, std::vector<glm::vec3>, std::vector<glm::vec2>> Cloth::make_data_buffer() {
     std::vector<glm::vec3> vertex_position_buffer{};
     std::vector<glm::vec3> vertex_normal_buffer{};
+    std::vector<glm::vec2> vertex_tex_buffer{};
     for(Particle& p : m_particles) {
         p.reset_normal();
     }
@@ -174,6 +176,7 @@ std::pair<std::vector<glm::vec3>, std::vector<glm::vec3>> Cloth::make_data_buffe
             vertex_normal_buffer.emplace_back(get_particle(x + 1, y)->get_normal());
             vertex_normal_buffer.emplace_back(get_particle(x, y)->get_normal());
             vertex_normal_buffer.emplace_back(get_particle(x, y + 1)->get_normal());
+//            vertex_tex_buffer.emplace_back(glm::vec2((float)x/m_width, (float)y/m_height));
 
             vertex_position_buffer.emplace_back(get_particle(x + 1, y + 1)->get_position());
             vertex_position_buffer.emplace_back(get_particle(x + 1, y)->get_position());
@@ -188,11 +191,11 @@ std::pair<std::vector<glm::vec3>, std::vector<glm::vec3>> Cloth::make_data_buffe
         }
     }
 
-    return {vertex_position_buffer, vertex_normal_buffer};
+    return {vertex_position_buffer, vertex_normal_buffer, vertex_tex_buffer};
 }
 
 void Cloth::rebuild_vertex_buffer(bool first_invoked) {
-    auto buffer_data = make_data_buffer();
+    const auto& [positions, normals, texcoords] = make_data_buffer();
 
     if (first_invoked) {
         glGenVertexArrays(1, &vao);
@@ -203,18 +206,18 @@ void Cloth::rebuild_vertex_buffer(bool first_invoked) {
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     if (first_invoked) {
-        glBufferData(GL_ARRAY_BUFFER, buffer_data.first.size() * sizeof(glm::vec3), &(buffer_data.first[0].x), GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, positions.size() * sizeof(glm::vec3), &(positions.front()), GL_DYNAMIC_DRAW);
     } else {
-        glBufferSubData(GL_ARRAY_BUFFER, 0, buffer_data.first.size() * sizeof(glm::vec3), &(buffer_data.first[0].x));
+        glBufferSubData(GL_ARRAY_BUFFER, 0, positions.size() * sizeof(glm::vec3), &(positions.front()));
     }
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void *)0);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo2);
     if (first_invoked) {
-        glBufferData(GL_ARRAY_BUFFER, buffer_data.second.size() * sizeof(glm::vec3), &(buffer_data.second[0].x), GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &(normals.front()), GL_DYNAMIC_DRAW);
     } else {
-        glBufferSubData(GL_ARRAY_BUFFER, 0, buffer_data.second.size() * sizeof(glm::vec3), &(buffer_data.second[0].x));
+        glBufferSubData(GL_ARRAY_BUFFER, 0, normals.size() * sizeof(glm::vec3), &(normals.front()));
     }
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void *)0);
@@ -222,7 +225,7 @@ void Cloth::rebuild_vertex_buffer(bool first_invoked) {
 
     if (!first_invoked) {
         glBindVertexArray(vao);
-        glDrawArrays(GL_TRIANGLES, 0, buffer_data.first.size());
+        glDrawArrays(GL_TRIANGLES, 0, positions.size());
         glBindVertexArray(NULL);
     }
 }
@@ -262,7 +265,7 @@ void Cloth::render() {
 
 unsigned program1;
 Cloth* cloth;
-glm::vec3 wind_dir = glm::vec3(20, 0, 0.6), gravity_dir = glm::vec3(0.f, -0.2f, 0.f), viewPos = glm::vec3(0.27, -0.17, 2.04);
+glm::vec3 wind_dir = glm::vec3(12, 0, 0.6), gravity_dir = glm::vec3(0.f, -0.2f, 0.f), viewPos = glm::vec3(0.27, -0.17, 2.04);
 int w = 1024, h = 768;
 GLFWwindow* window;
 glm::vec3 forward = glm::vec3(0.f, 0.f, -1.f);
