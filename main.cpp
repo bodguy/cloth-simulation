@@ -267,6 +267,8 @@ void Cloth::render() {
 }
 
 unsigned program1, sphere_vao, sphere_vbo_position, sphere_vbo_normal, sphere_index_buffer;
+unsigned program2, axis_line_vao, axis_line_vbo;
+unsigned sphere_vao2, sphere_vbo_position2;
 Cloth* cloth;
 glm::vec3 wind_dir = glm::vec3(12, 0, 0.6), gravity_dir = glm::vec3(0.f, -0.2f, 0.f), viewPos = glm::vec3(0.27, -0.17, 2.04);
 int w = 1024, h = 768;
@@ -275,8 +277,8 @@ glm::vec3 forward = glm::vec3(0.f, 0.f, -1.f);
 glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
 glm::vec3 right = glm::cross(forward, up);
 float nearClipPlane = 0.1f, farClipPlane = 100.f, fieldOfView = glm::radians(45.f), speed = 0.04f;
-bool is_wireframe = false;
-int sphere_draw_call_count = 0;
+bool is_wireframe = true;
+int sphere_draw_call_count = 0, sphere_draw_call_count2 = 0;
 glm::vec3 sphere_pos = glm::vec3(0, 0, 0);
 float sphere_radius = 0.2;
 
@@ -387,6 +389,35 @@ unsigned int subdivide(unsigned int p1, unsigned int p2, std::vector<glm::vec3>&
     return positions.size() - 1;
 }
 
+std::vector<glm::vec3> generate_uv_sphere(float radius, int latitudes, int longitudes) {
+    float latitude_increment = 360.0f / latitudes;
+    float longitude_increment = 180.0f / longitudes;
+
+    // if this causes an error, consider changing the size to [(latitude + 1)*(longitudes + 1)], but this should work.
+    std::vector<glm::vec3> vertices{};
+
+    for (float u = 0; u < 360.0f; u += latitude_increment) {
+        for (float t = 0; t < 180.0f; t += longitude_increment) {
+            float rad = radius;
+
+            float x = (float) (rad * std::sin(glm::radians(t)) * std::sin(glm::radians(u)));
+            float y = (float) (rad * std::cos(glm::radians(t)));
+            float z = (float) (rad * std::sin(glm::radians(t)) * std::cos(glm::radians(u)));
+
+            vertices.emplace_back(glm::vec3(x, y, z));
+
+            float x1 = (float) (rad * std::sin(glm::radians(t + longitude_increment)) * std::sin(glm::radians(u + latitude_increment)));
+            float y1 = (float) (rad * std::cos(glm::radians(t + longitude_increment)));
+            float z1 = (float) (rad * std::sin(glm::radians(t + longitude_increment)) * std::cos(glm::radians(u + latitude_increment)));
+
+            vertices.emplace_back(glm::vec3(x1, y1, z1));
+        }
+    }
+
+    return vertices;
+
+}
+
 std::tuple<std::vector<glm::vec3>, std::vector<glm::vec3>, std::vector<unsigned int>> generate_ico_sphere(unsigned int subdivisions) {
     float t = (1.f + glm::sqrt(5.f) / 2.f);
     std::vector<glm::vec3> vertices = {
@@ -448,6 +479,9 @@ bool init() {
     program1 = loadShaderFromFile("../shaders/vs.glsl", "../shaders/fs.glsl");
     if (!program1)
         return false;
+    program2 = loadShaderFromFile("../shaders/axis_vs.glsl", "../shaders/axis_fs.glsl");
+    if (!program2)
+        return false;
 
     const auto& [positions, normals, indices] = generate_ico_sphere(3);
     sphere_draw_call_count = indices.size();
@@ -473,6 +507,50 @@ bool init() {
 
     glBindVertexArray(NULL);
 
+    const auto& positions2 = generate_uv_sphere(sphere_radius, 20, 20);
+    sphere_draw_call_count2 = positions2.size();
+
+    glGenVertexArrays(1, &sphere_vao2);
+    glBindVertexArray(sphere_vao2);
+
+    glGenBuffers(1, &sphere_vbo_position2);
+    glBindBuffer(GL_ARRAY_BUFFER, sphere_vbo_position2);
+    glBufferData(GL_ARRAY_BUFFER, positions2.size() * sizeof(glm::vec3), &(positions2.front()), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void *)0);
+
+    glBindVertexArray(NULL);
+
+    const glm::vec3 vertices[] = {
+            glm::vec3(0, 0, 0),
+            glm::vec3(1, 0, 0), // color
+            glm::vec3(1, 0, 0),
+            glm::vec3(1, 0, 0), // color
+
+            glm::vec3(0, 0, 0),
+            glm::vec3(0, 1, 0), // color
+            glm::vec3(0, 1, 0),
+            glm::vec3(0, 1, 0), // color
+
+            glm::vec3(0, 0, 0),
+            glm::vec3(0, 0, 1), // color
+            glm::vec3(0, 0, 1),
+            glm::vec3(0, 0, 1), // color
+    };
+
+    glGenVertexArrays(1, &axis_line_vao);
+    glBindVertexArray(axis_line_vao);
+
+    glGenBuffers(1, &axis_line_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, axis_line_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), &vertices[0], GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 2 * sizeof(glm::vec3), (void *)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 2 * sizeof(glm::vec3), (void *)(sizeof(glm::vec3)));
+
+    glBindVertexArray(NULL);
+
     cloth = new Cloth(55, 45);
 
     return true;
@@ -483,7 +561,12 @@ void destroy() {
     glDeleteBuffers(1, &sphere_vbo_position);
     glDeleteBuffers(1, &sphere_vbo_normal);
     glDeleteBuffers(1, &sphere_index_buffer);
+    glDeleteBuffers(1, &axis_line_vao);
+    glDeleteBuffers(1, &axis_line_vbo);
+    glDeleteBuffers(1, &sphere_vao2);
+    glDeleteBuffers(1, &sphere_vbo_position2);
     glDeleteProgram(program1);
+    glDeleteProgram(program2);
     if (cloth) {
         delete cloth;
         cloth = nullptr;
@@ -520,11 +603,11 @@ void update(float dt) {
 
 void render() {
     glm::mat4 model = glm::identity<glm::mat4>();
-    model = glm::translate(model, glm::vec3(-0.5f, 0.5f, 0.f));
+    model = glm::translate(model, glm::vec3(0.f, 0.f, 0.f));
     glm::mat4 view = glm::lookAt(viewPos, viewPos + forward, up);
     glm::mat4 perspective = glm::perspective(fieldOfView, (float)w / (float)h, nearClipPlane, farClipPlane);
     float attenuation = 0.05f, intensity = 0.5f, shininess = 128.f;
-    glm::vec3 color = glm::vec3(1.f, 0.f, 0.f), lightPos = glm::vec3(3.17f, 2.34f, -4.184f);
+    glm::vec3 color = glm::vec3(1.f, 1.f, 1.f), lightPos = glm::vec3(3.17f, 2.34f, -4.184f);
 
     glUseProgram(program1);
     glUniformMatrix4fv(glGetUniformLocation(program1, "model"), 1, GL_FALSE, glm::value_ptr(model));
@@ -540,11 +623,27 @@ void render() {
     cloth->render();
 
     model = glm::identity<glm::mat4>();
-    model = glm::translate(model, sphere_pos);
+    model = glm::translate(model, lightPos);
     model = glm::scale(model, glm::vec3(0.2, 0.2, 0.2));
     glUniformMatrix4fv(glGetUniformLocation(program1, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glBindVertexArray(sphere_vao);
     glDrawElements(GL_TRIANGLES, sphere_draw_call_count, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(NULL);
+
+    model = glm::identity<glm::mat4>();
+    model = glm::translate(model, sphere_pos);
+    glUniformMatrix4fv(glGetUniformLocation(program1, "model"), 1, GL_FALSE, glm::value_ptr(model));
+    glBindVertexArray(sphere_vao2);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, sphere_draw_call_count2);
+    glBindVertexArray(NULL);
+
+    glUseProgram(program2);
+    model = glm::identity<glm::mat4>();
+    glUniformMatrix4fv(glGetUniformLocation(program2, "model"), 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(glGetUniformLocation(program2, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(program2, "projection"), 1, GL_FALSE, glm::value_ptr(perspective));
+    glBindVertexArray(axis_line_vao);
+    glDrawArrays(GL_LINES, 0, 6);
     glBindVertexArray(NULL);
 }
 
