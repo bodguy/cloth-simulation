@@ -269,6 +269,9 @@ void Cloth::render() {
 unsigned program1, sphere_vao, sphere_vbo_position, sphere_vbo_normal, sphere_index_buffer;
 unsigned program2, axis_line_vao, axis_line_vbo;
 unsigned sphere_vao2, sphere_vbo_position2;
+unsigned program3, grid_vao, grid_vbo, grid_ibo;
+unsigned grid_draw_call_count = 0;
+glm::vec4 grid_color = glm::vec4(0, 1, 1, 1);
 Cloth* cloth;
 glm::vec3 wind_dir = glm::vec3(12, 0, 0.6), gravity_dir = glm::vec3(0.f, -0.2f, 0.f), viewPos = glm::vec3(0.27, -0.17, 2.04);
 int w = 1024, h = 768;
@@ -482,6 +485,9 @@ bool init() {
     program2 = loadShaderFromFile("../shaders/axis_vs.glsl", "../shaders/axis_fs.glsl");
     if (!program2)
         return false;
+    program3 = loadShaderFromFile("../shaders/grid_vs.glsl", "../shaders/grid_fs.glsl");
+    if (!program3)
+        return false;
 
     const auto& [positions, normals, indices] = generate_ico_sphere(3);
     sphere_draw_call_count = indices.size();
@@ -551,6 +557,41 @@ bool init() {
 
     glBindVertexArray(NULL);
 
+    std::vector<glm::vec3> vertices_grid{};
+    unsigned int grid_scale = 10;
+    for (int y = 0; y <= grid_scale; ++y) {
+        for (int x = 0; x <= grid_scale; ++x) {
+            vertices_grid.emplace_back(glm::vec3((float)x/(float)grid_scale, 0, (float)y/(float)grid_scale));
+        }
+    }
+    std::vector<glm::uvec4> indices_grid{};
+    for(int j=0; j< grid_scale; ++j) {
+        for(int i=0; i< grid_scale; ++i) {
+            int row1 =  j * (grid_scale+1);
+            int row2 = (j+1) * (grid_scale+1);
+
+            indices_grid.emplace_back(glm::uvec4(row1+i, row1+i+1, row1+i+1, row2+i+1));
+            indices_grid.emplace_back(glm::uvec4(row2+i+1, row2+i, row2+i, row1+i));
+        }
+    }
+
+    glGenVertexArrays(1, &grid_vao);
+    glBindVertexArray(grid_vao);
+
+    glGenBuffers(1, &grid_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, grid_vbo);
+    glBufferData(GL_ARRAY_BUFFER, vertices_grid.size()*sizeof(*vertices_grid.data()), vertices_grid.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
+
+    glGenBuffers(1, &grid_ibo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, grid_ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_grid.size()*sizeof(*indices_grid.data()), indices_grid.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(NULL);
+
+    grid_draw_call_count = indices.size() * 4;
+
     cloth = new Cloth(55, 45);
 
     return true;
@@ -565,8 +606,12 @@ void destroy() {
     glDeleteBuffers(1, &axis_line_vbo);
     glDeleteBuffers(1, &sphere_vao2);
     glDeleteBuffers(1, &sphere_vbo_position2);
+    glDeleteBuffers(1, &grid_vao);
+    glDeleteBuffers(1, &grid_vbo);
+    glDeleteBuffers(1, &grid_ibo);
     glDeleteProgram(program1);
     glDeleteProgram(program2);
+    glDeleteProgram(program3);
     if (cloth) {
         delete cloth;
         cloth = nullptr;
@@ -637,14 +682,29 @@ void render() {
     glDrawArrays(GL_TRIANGLE_STRIP, 0, sphere_draw_call_count2);
     glBindVertexArray(NULL);
 
+    glUseProgram(program3);
+    model = glm::identity<glm::mat4>();
+    model = glm::scale(model, glm::vec3(2.f, 2.f, 2.f));
+    model = glm::translate(model, glm::vec3(-0.5f, 0.f, -0.5f));
+    glUniformMatrix4fv(glGetUniformLocation(program3, "model"), 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(glGetUniformLocation(program3, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(program3, "projection"), 1, GL_FALSE, glm::value_ptr(perspective));
+    glUniform4f(glGetUniformLocation(program3, "aFragColor"), grid_color.x, grid_color.y, grid_color.z, grid_color.w);
+    glBindVertexArray(grid_vao);
+    glDrawElements(GL_LINES, grid_draw_call_count, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(NULL);
+
+    glDisable(GL_DEPTH_TEST); // to make axis line always front of all the objects.
     glUseProgram(program2);
     model = glm::identity<glm::mat4>();
     glUniformMatrix4fv(glGetUniformLocation(program2, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(glGetUniformLocation(program2, "view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(program2, "projection"), 1, GL_FALSE, glm::value_ptr(perspective));
+    glUniform4f(glGetUniformLocation(program2, "aFragColor"), grid_color.x, grid_color.y, grid_color.z, grid_color.w);
     glBindVertexArray(axis_line_vao);
     glDrawArrays(GL_LINES, 0, 6);
     glBindVertexArray(NULL);
+    glEnable(GL_DEPTH_TEST);
 }
 
 int main() {
