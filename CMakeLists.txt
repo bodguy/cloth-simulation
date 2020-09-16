@@ -13,7 +13,16 @@ find_package(GLEW REQUIRED)
 find_package(GLFW3 REQUIRED)
 find_package(GLM REQUIRED)
 
-add_executable(${CMAKE_PROJECT_NAME} "main.cpp")
+add_executable(${CMAKE_PROJECT_NAME}
+        "src/main.cpp"
+        "src/Application.h"
+        "src/Application.cpp"
+        "src/Bitmap.h"
+        "src/Cloth.h"
+        "src/Cloth.cpp"
+        "src/utils.h"
+        "src/utils.cpp"
+        )
 
 if(OPENGL_FOUND AND GLEW_FOUND AND GLFW3_FOUND)
   set(PROJECT_INCLUDE_DIR ${OPENGL_INCLUDE_DIR} ${GLFW3_INCLUDE_DIR})
@@ -23,3 +32,5 @@ if(OPENGL_FOUND AND GLEW_FOUND AND GLFW3_FOUND)
   set(ADDITIONAL_LIBS ${COCOA_LIBS} ${IOKIT_LIBS} ${CORE_LIBS} ${GLEW_LIBS} ${OPENGL_gl_LIBRARY} ${GLFW3_LIBRARY})
   target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC ${ADDITIONAL_LIBS})
 endif()
+
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE "third_party/")

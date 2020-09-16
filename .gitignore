@@ -1,9 +1,10 @@
 /*
 
 !/cmake/
+!/src/
 !/shaders/
+!/third_party/
 !/README.md
 !.gitignore
 !capture.png
 !CMakeLists.txt
-!main.cpp
